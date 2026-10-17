@@ -1,0 +1,6 @@
+# dsh-intelligent-ui bundle patch: inserts its own loader entry.
+# Installed with `dsh plugin --profile desktop add <path>`; the entry below loads
+# the Host half, and the package's `dsh.client` block loads the browser half.
+- insert:
+    - id: intelligent-ui
+      name: 'dsh-intelligent-ui'

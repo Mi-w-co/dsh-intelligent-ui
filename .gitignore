@@ -1,0 +1,4 @@
+node_modules/
+lib/client.js
+src/lib/components/map/worker-source.generated.ts
+*.html

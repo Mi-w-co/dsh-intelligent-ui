@@ -1,0 +1,54 @@
+{
+  "name": "dsh-intelligent-ui",
+  "description": "ChatGPT-style Intelligent UI for DSH, built on the official OpenUI stack: the model streams OpenUI Lang and the conversation renders it as interactive cards (charts, tables, forms, maps, SVG, sandboxed HTML).",
+  "version": "0.2.0",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "slots"
+      ],
+      "platform": "web"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh": ">=0.1.7-rc.1 <0.3.0-0"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/dsh": {
+      "optional": true
+    }
+  },
+  "license": "MIT",
+  "files": [
+    "lib/index.js",
+    "lib/client.js",
+    "lib/prompt.js",
+    "lib/prompt-text.js",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "dependencies": {
+    "@openuidev/react-lang": "^1.0.1",
+    "@openuidev/react-ui": "^0.18.1",
+    "katex": "^0.19.0",
+    "lucide-react": "^1.57.0",
+    "maplibre-gl": "^6.14.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  }
+}
