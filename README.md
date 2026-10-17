@@ -10,11 +10,17 @@ a chart, a step-by-step drawing, a photo carousel, a small map.
 > Pure plugin: it patches nothing inside DSH and touches no file in `app.asar`, so it survives
 > desktop updates and can be copied to any DSH installation.
 
+**此为大肥鱼开发插件，如有问题请使用大肥鱼进行维修！！**
+
 ## 效果截图
 
 | 概念解释：分块卡片 + 计数器 + 折叠区块 | 一日游推荐：图片卡片 + 对比表 + 选择器 |
 | --- | --- |
 | ![closure](docs/screenshot-closure.png) | ![travel](docs/screenshot-travel.png) |
+
+| 分步图纸：SVG 绘图 + 步骤切换 + 步骤缩略图 |
+| --- |
+| ![bookshelf](docs/screenshot-bookshelf.png) |
 
 Every answer ends with one fenced ` ```ui ` block; the plugin hides that fence and draws the
 card in its place. Nothing else in the transcript changes.
