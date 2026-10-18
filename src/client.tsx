@@ -12,7 +12,7 @@
  * rendered as extra cards without patching the shipped UI.
  */
 import * as React from "react";
-import { Renderer } from "@openuidev/react-lang";
+import { Renderer, type LibraryActionEvent, type ActionEvent } from "@openuidev/react-lang";
 import { componentCss, library, runLibraryAction } from "./library";
 
 /** Stable identity of this plugin's slot entry. */
@@ -186,12 +186,113 @@ class CardBoundary extends React.Component {
   }
 }
 
+/** The composer surface a card may drive, as the slot hands it down. */
+type ComposerActions = {
+  setDraft: (text: string) => void;
+  submit: () => void;
+};
+
+/**
+ * The composer binding for the card currently being rendered.
+ *
+ * `Renderer`'s `onAction` is a plain callback with no access to the slot's
+ * props, and a card sits below it, so the tail publishes its own composer here
+ * and the card's handler reads it back. A React context rather than a
+ * module-level variable: several turns can be mounted at once, and a shared
+ * slot would send one conversation's click into another's composer.
+ */
+const ComposerContext = React.createContext(null);
+
+/**
+ * Send text to the assistant exactly as pressing Enter in the composer does.
+ *
+ * `setDraft` writes the composer's editor and `submit` admits the draft, which
+ * is the same admission path the composer's own send button uses: the message
+ * queues behind a running turn, appears in the transcript, and is handled by
+ * the same error path. Going through the composer (rather than a bespoke
+ * Host call) is deliberate — it keeps the button inside the one code path the
+ * UI already guarantees.
+ * @param text - the message to send.
+ * @param actions - the composer binding, or null when the surface is read-only.
+ * @returns whether the send was attempted.
+ */
+function sendToAssistant(text, actions) {
+  if (
+    actions === null ||
+    actions === undefined ||
+    typeof actions.setDraft !== "function" ||
+    typeof actions.submit !== "function"
+  ) {
+    console.warn("intelligent-ui: no composer is available, so this action cannot be sent.");
+    return false;
+  }
+  try {
+    actions.setDraft(String(text ?? ""));
+    actions.submit();
+    return true;
+  } catch (error) {
+    console.error("intelligent-ui: sending an action to the assistant failed", error);
+    return false;
+  }
+}
+
+/**
+ * The single handler every card action funnels through.
+ *
+ * Exported for the test suite: the click path is the part that was broken, and
+ * it is worth testing directly rather than through a rendered button.
+ * @param event - the `LibraryActionEvent` the upstream renderer emits.
+ * @param actions - the composer binding of the card's own turn.
+ */
+export function handleCardAction(
+  event: LibraryActionEvent | null | undefined,
+  actions: ComposerActions | null | undefined = null,
+): void {
+  // An absent event is not an action; returning early keeps a null from a
+  // half-built render out of the library's own null-unsafe dispatch.
+  if (event === null || event === undefined) return;
+  // Custom actions (e.g. CopyToClipboard) are ours; built-in steps are not.
+  const handled = runLibraryAction(event as ActionEvent);
+  if (handled !== null) return;
+  // `@ToAssistant(...)` lowers to a `continue_conversation` action event. The
+  // official renderer emits it, but nothing in DSH consumed it, so a button
+  // carrying it looked clickable and did nothing. Route it to the composer.
+  //
+  // The message text is `humanFriendlyMessage` — verified in the upstream
+  // renderer, which emits
+  // `{ type: ContinueConversation, params: { context }, humanFriendlyMessage: step.message }`.
+  // `params.context` is an optional hint, not the message, so it is only a
+  // fallback for a hand-built event.
+  if (event?.type === "continue_conversation") {
+    const text =
+      typeof event.humanFriendlyMessage === "string" && event.humanFriendlyMessage !== ""
+        ? event.humanFriendlyMessage
+        : typeof event.params?.message === "string"
+          ? event.params.message
+          : typeof event.params?.context === "string"
+            ? event.params.context
+            : "";
+    if (text !== "") sendToAssistant(text, actions);
+    return;
+  }
+  // `@OpenUrl(...)` opens a link; the browser allows it because the click is the
+  // user gesture.
+  if (event?.type === "open_url") {
+    const url = typeof event.params?.url === "string" ? event.params.url : "";
+    if (/^https?:\/\//i.test(url)) window.open(url, "_blank", "noopener,noreferrer");
+  }
+}
+
 /** One card: an OpenUI program rendered by the official renderer. */
 function Card({ program }) {
-  const onAction = React.useCallback((event) => {
-    // Custom actions (e.g. CopyToClipboard) are ours; built-in steps are not.
-    runLibraryAction(event);
-  }, []);
+  // Read the composer from the card's own turn, captured by the provider below.
+  const composerRef = React.useContext(ComposerContext);
+  const onAction = React.useCallback(
+    (event) => {
+      handleCardAction(event, composerRef?.current ?? null);
+    },
+    [composerRef],
+  );
   // Validation problems are logged, not printed on the card: the reader cannot act
   // on "field /kind expects one of [...]", and the card would look broken for what
   // is often a cosmetic slip. The console keeps them available for debugging.
@@ -218,7 +319,12 @@ function Card({ program }) {
 
 /** Every card contributed by one turn's assistant text. */
 function IntelligentUiTail(props) {
-  const { sessionId, useChat, turn } = props;
+  const { sessionId, useChat, turn, inputActions } = props;
+  // Keep this turn's composer in a ref and publish it through context, so this
+  // turn's cards send here and not into whichever turn rendered last. A ref
+  // (not state) because the value is read inside a click, never rendered.
+  const composerRef = React.useRef(inputActions ?? null);
+  composerRef.current = inputActions ?? null;
   if (typeof useChat !== "function") {
     console.error("intelligent-ui: the slot did not provide useChat; no cards can be read.");
     return null;
@@ -258,13 +364,15 @@ function IntelligentUiTail(props) {
   }, [programs]);
   if (programs.length === 0) return null;
   return (
-    <div ref={rootRef} className="diui-root" data-session={sessionId}>
-      {programs.map((program, i) => (
-        <CardBoundary key={i} program={program}>
-          <Card program={program} />
-        </CardBoundary>
-      ))}
-    </div>
+    <ComposerContext.Provider value={composerRef}>
+      <div ref={rootRef} className="diui-root" data-session={sessionId}>
+        {programs.map((program, i) => (
+          <CardBoundary key={i} program={program}>
+            <Card program={program} />
+          </CardBoundary>
+        ))}
+      </div>
+    </ComposerContext.Provider>
   );
 }
 

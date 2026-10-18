@@ -36,6 +36,8 @@ card in its place. Nothing else in the transcript changes.
 - **63 个 `@函数` + 5 个交互动作**：`@Each` `@Range` `@Filter` `@Sum` `@GroupBy` `@Format`
   `@FormatDate` `@Plural` `@Clamp` …；`@Set` `@Reset` `@ToAssistant` `@OpenUrl`
   `@CopyToClipboard`。页面可以自己算、自己改，不必再问模型。
+- **按钮能真的发消息**：`Button("跑一次测试", @ToAssistant("跑一次测试"))` 点下去等于你把
+  这句话打进输入框回车——进入当前会话，按正常排队逻辑送出去。`@OpenUrl` 则打开链接。
 - **自成一个 bundle**：`lib/client.js` 是单文件（约 3.6 MB），OpenUI、zod、KaTeX、
   lucide-react、MapLibre 及其 worker、全部样式都已打进去。运行时**不需要 `node_modules`**，
   也**不会联网下载**任何东西（只有 `SearchImage` 会去 Wikipedia/Commons 取照片）。
@@ -53,7 +55,7 @@ card in its place. Nothing else in the transcript changes.
 直接使用预编译包（推荐，不需要 Node 工具链）：
 
 1. 下载 [最新 Release](https://github.com/Mi-w-co/dsh-intelligent-ui/releases/latest) 里的
-   `dsh-intelligent-ui-0.2.0.zip`，解压出 `dsh-intelligent-ui/` 目录（放到哪里都行，但不要放进
+   `dsh-intelligent-ui-0.2.1.zip`，解压出 `dsh-intelligent-ui/` 目录（放到哪里都行，但不要放进
    `app.asar`）。
 2. 打开 DSH → **插件 → 添加插件**，指向该目录，装完后**重启 DSH**。
 3. 随便问一个值得可视化的问题，末尾出现卡片即成功。
@@ -113,3 +115,4 @@ Requires a DSH build in `>=0.1.7-rc.1 <0.3.0-0` with a web UI.
 
 **Build:** `pnpm install && node tools/build-prompt.mjs && node tools/build-client.mjs &&
 node test/verify.mjs`.
+

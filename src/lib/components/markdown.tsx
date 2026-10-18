@@ -7,6 +7,29 @@ import { webUrl } from "./style";
 
 const INLINE = /(`[^`\n]+`)|(\*\*[^*\n]+?\*\*|__[^_\n]+?__)|(~~[^~\n]+?~~)|(\*[^*\s][^*\n]*?\*|_[^_\s][^_\n]*?_)|(\[[^\]\n]+\]\([^)\s]+\))/;
 
+/**
+ * Reject an underscore emphasis that is really part of a word.
+ *
+ * `run_minimax_h3_6gb.bat`, `CLIP_text_encoder.pt` and `snake_case_names` are
+ * identifiers, not emphasis: CommonMark already refuses to open `_` emphasis
+ * between two alphanumerics, and this renderer shows file names and shell
+ * commands more often than prose italics, so the same rule applies here. An
+ * asterisk is unaffected — `*italic*` keeps working inside identifiers.
+ * @param text - the string the match was found in.
+ * @param index - where the emphasis token starts.
+ * @param token - the matched token, e.g. "_minimax_".
+ * @returns true when the token should be treated as literal text.
+ */
+function underscoreInsideWord(text: string, index: number, token: string): boolean {
+  if (token[0] !== "_") return false;
+  // Only the single-underscore emphasis form is at issue; __bold__ starts with
+  // two, and an intraword "__" is rare enough to leave alone.
+  if (token[1] === "_") return false;
+  const before = index > 0 ? text[index - 1] : "";
+  const after = text[index + token.length] ?? "";
+  return /[A-Za-z0-9]/.test(before) || /[A-Za-z0-9]/.test(after);
+}
+
 export function inline(text: string, key = "i"): ReactNode {
   const out: ReactNode[] = [];
   let rest = text;
@@ -16,6 +39,13 @@ export function inline(text: string, key = "i"): ReactNode {
     if (!m) {
       out.push(rest);
       break;
+    }
+    // An identifier's underscores are literal: emit the text before them and
+    // resume scanning AFTER the rejected token, so `a_b_c` cannot oscillate.
+    if (underscoreInsideWord(rest, m.index, m[0])) {
+      out.push(rest.slice(0, m.index + 1));
+      rest = rest.slice(m.index + 1);
+      continue;
     }
     if (m.index) out.push(rest.slice(0, m.index));
     const token = m[0];

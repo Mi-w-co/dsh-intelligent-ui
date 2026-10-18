@@ -1,7 +1,7 @@
 {
   "name": "dsh-intelligent-ui",
   "description": "ChatGPT-style Intelligent UI for DSH, built on the official OpenUI stack: the model streams OpenUI Lang and the conversation renders it as interactive cards (charts, tables, forms, maps, SVG, sandboxed HTML).",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
